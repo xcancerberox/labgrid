@@ -26,6 +26,12 @@ class EsptoolDriver(Driver):
         validator=attr.validators.optional(attr.validators.instance_of(list)),
     )
 
+    @Driver.check_active
+    def get_board_id(self):
+        esp = esptool.detect_chip(self.tty.port)
+        mac = esp.read_mac()
+        return "".join([str(octet) for octet in mac[1:]])
+
     def base_command(self):
         port = self.tty.port
         return ["esptool.py",
