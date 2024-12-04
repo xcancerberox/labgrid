@@ -113,3 +113,52 @@ class SentrisenseStrategy(Strategy):
                 f"no transition found from {self.status} to {status}"
             )
         self.status = status
+
+class SolarPanelsStatus(enum.Enum):
+    unknown = 0
+    off = 1
+    on = 2
+    left = 3
+    right = 4
+
+@target_factory.reg_driver
+@attr.s(eq=False)
+class SentpiStrategy(Strategy):
+    bindings = {
+        "sun_emulator_left": "PowerProtocol",
+        "sun_emulator_right": "PowerProtocol",
+    }
+
+    status = attr.ib(default=SolarPanelsStatus.unknown)
+
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
+
+    @step(args=['status'])
+    def transition(self, status, *, step):  # pylint: disable=redefined-outer-name
+        self.target.activate(self.sun_emulator_left)
+        self.target.activate(self.sun_emulator_right)
+        if not isinstance(status, Status):
+            status = SolarPanelsStatus[status]
+        if status == SolarPanelsStatus.unknown:
+            raise StrategyError(f"can not transition to {status}")
+        elif status == self.status:
+            step.skip("nothing to do")
+            return  # nothing to do
+        elif status == SolarPanelsStatus.off:
+            self.sun_emulator_left.on()
+            self.sun_emulator_right.on()
+        elif status == SolarPanelsStatus.on:
+            self.sun_emulator_left.off()
+            self.sun_emulator_right.off()
+        elif status == SolarPanelsStatus.left:
+            self.sun_emulator_left.off()
+            self.sun_emulator_right.on()
+        elif status == SolarPanelsStatus.right:
+            self.sun_emulator_left.on()
+            self.sun_emulator_right.off()
+        else:
+            raise StrategyError(
+                f"no transition found from {self.status} to {status}"
+            )
+        self.status = status
