@@ -47,6 +47,14 @@ class EsptoolDriver(Driver):
                 "esp32s2"]
 
     @Driver.check_active
+    def reset(self):
+        cmd = ["esptool.py",
+               "read_mac"]
+        processwrapper.check_output(
+            cmd, print_on_silent_log=False
+        )
+
+    @Driver.check_active
     @step(args=["bindir"])
     def flash(self, bindir, args=None):
         cmd = self.base_command()
