@@ -21,7 +21,7 @@ class Status(enum.Enum):
 
 @target_factory.reg_driver
 @attr.s(eq=False)
-class SentrisenseStrategy(Strategy):
+class SentpiStrategy(Strategy):
     bindings = {
         "power": "PowerProtocol",
         "charger1": "PowerProtocol",
@@ -123,7 +123,7 @@ class SolarPanelsStatus(enum.Enum):
 
 @target_factory.reg_driver
 @attr.s(eq=False)
-class SentpiStrategy(Strategy):
+class SunStrategy(Strategy):
     bindings = {
         "sun_emulator_left": "PowerProtocol",
         "sun_emulator_right": "PowerProtocol",
@@ -157,6 +157,39 @@ class SentpiStrategy(Strategy):
         elif status == SolarPanelsStatus.right:
             self.sun_emulator_left.on()
             self.sun_emulator_right.off()
+        else:
+            raise StrategyError(
+                f"no transition found from {self.status} to {status}"
+            )
+        self.status = status
+
+@target_factory.reg_driver
+@attr.s(eq=False)
+class BareboneStrategy(Strategy):
+    bindings = {
+        "serial": "ConsoleProtocol",
+    }
+
+    status = attr.ib(default=Status.unknown)
+
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
+
+    @step(args=['status'])
+    def transition(self, status, *, step):  # pylint: disable=redefined-outer-name
+        if not isinstance(status, Status):
+            status = Status[status]
+        if status == Status.unknown:
+            raise StrategyError(f"can not transition to {status}")
+        elif status == self.status:
+            step.skip("nothing to do")
+            return  # nothing to do
+        elif status == Status.off:
+            step.skip("nothing to do")
+            return  # nothing to do
+        elif status == Status.on:
+            step.skip("nothing to do")
+            return  # nothing to do
         else:
             raise StrategyError(
                 f"no transition found from {self.status} to {status}"
