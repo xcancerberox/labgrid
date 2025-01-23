@@ -195,3 +195,49 @@ class BareboneStrategy(Strategy):
                 f"no transition found from {self.status} to {status}"
             )
         self.status = status
+
+class NixStatus(enum.Enum):
+    unknown = 0
+    off = 1
+    on = 2
+    charger = 3
+
+@target_factory.reg_driver
+@attr.s(eq=False)
+class NixStrategy(Strategy):
+    bindings = {
+        "power": "PowerProtocol",
+        "charger": "PowerProtocol",
+        "esptool": "EsptoolDriver",
+    }
+
+    status = attr.ib(default=NixStatus.unknown)
+
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
+
+    @step(args=['status'])
+    def transition(self, status, *, step):  # pylint: disable=redefined-outer-name
+        self.target.activate(self.charger)
+        self.target.activate(self.power)
+        if not isinstance(status, NixStatus):
+            status = NixStatus[status]
+        if status == NixStatus.unknown:
+            raise StrategyError(f"can not transition to {status}")
+        elif status == self.status:
+            step.skip("nothing to do")
+            return  # nothing to do
+        elif status == NixStatus.off:
+            self.charger.off()
+            self.power.off()
+        elif status == NixStatus.on:
+            self.charger.off()
+            self.power.on()
+        elif status == NixStatus.charger:
+            self.charger.on()
+            self.power.on()
+        else:
+            raise StrategyError(
+                f"no transition found from {self.status} to {status}"
+            )
+        self.status = status
